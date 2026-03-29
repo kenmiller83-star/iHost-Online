@@ -1,0 +1,669 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+                      Home, 
+                      Calendar, 
+                      User, 
+                      LogOut, 
+                      Plus, 
+                      Menu, 
+                      X,
+                      Ticket,
+                      Gift,
+                      LayoutDashboard,
+                      Settings,
+                      Wallet,
+                      Shield,
+                      Crown,
+                      Map,
+                      Bot,
+                      Building2,
+                      MessageCircle,
+                      Heart,
+                      BookOpen,
+                      Search,
+                      ArrowLeft,
+                      ChevronLeft
+                    } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import NotificationBell from '@/components/notifications/NotificationBell';
+import MessageNotificationCenter from '@/components/messaging/MessageNotificationCenter';
+import Footer from '@/components/common/Footer';
+import { AnimatePresence, motion } from 'framer-motion';
+
+export default function Layout({ children, currentPageName }) {
+  const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Tab stack preservation
+  const [tabStacks, setTabStacks] = useState({
+    Home: [{ page: 'Home', path: createPageUrl('Home') }],
+    DiscoverMap: [{ page: 'DiscoverMap', path: createPageUrl('DiscoverMap') }],
+    MyTickets: [{ page: 'MyTickets', path: createPageUrl('MyTickets') }],
+    Profile: [{ page: 'Profile', path: createPageUrl('Profile') }]
+  });
+  const [currentTab, setCurrentTab] = useState('Home');
+
+  // Define which pages belong to which tab
+  const pageToTab = {
+    Home: 'Home',
+    Search: 'Home',
+    EventDetails: 'Home',
+    CreateEvent: 'Home',
+    EditEvent: 'Home',
+    EventAnalytics: 'Home',
+    EventAttendees: 'Home',
+    BrowseWorkshops: 'Home',
+    WorkshopDetails: 'Home',
+    MerchandiseCheckout: 'Home',
+    DiscoverMap: 'DiscoverMap',
+    MyTickets: 'MyTickets',
+    MyBookings: 'MyTickets',
+    MyOrders: 'MyTickets',
+    Profile: 'Profile',
+    Settings: 'Profile',
+    HostDashboard: 'Profile',
+    HostPayouts: 'Profile',
+    HostReviews: 'Profile',
+    HostVerification: 'Profile',
+    HostMerchandise: 'Profile',
+    HostOrders: 'Profile',
+    HostWorkshops: 'Profile',
+    CreateWorkshop: 'Profile',
+    AddMerchandise: 'Profile',
+    Referrals: 'Profile',
+    Premium: 'Profile'
+  };
+
+  // Track navigation changes
+  useEffect(() => {
+    const tab = pageToTab[currentPageName] || currentTab;
+    if (tab && pageToTab[currentPageName]) {
+      setCurrentTab(tab);
+      setTabStacks(prev => ({
+        ...prev,
+        [tab]: [...prev[tab].filter(item => item.page !== currentPageName), 
+                { page: currentPageName, path: location.pathname }]
+      }));
+    }
+  }, [currentPageName, location.pathname]);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+      
+      const profiles = await base44.entities.UserProfile.filter({ user_email: userData.email });
+      if (profiles.length > 0) setUserProfile(profiles[0]);
+    } catch (e) {
+      setUser(null);
+    }
+  };
+
+  const isPremium = userProfile?.is_subscriber;
+
+  const handleLogout = () => {
+    base44.auth.logout();
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(createPageUrl('Search') + `?q=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    } else {
+      navigate(createPageUrl('Search'));
+    }
+  };
+
+  const navItems = [
+      { name: 'Discover', page: 'Home', icon: Home },
+      { name: 'Workshops', page: 'BrowseWorkshops', icon: BookOpen },
+      { name: 'Calendar', page: 'CalendarView', icon: Calendar },
+      { name: 'Map', page: 'DiscoverMap', icon: Map },
+      { name: 'My Tickets', page: 'MyTickets', icon: Ticket },
+      { name: 'My Orders', page: 'MyOrders', icon: Gift },
+      { name: 'Wishlist', page: 'Wishlist', icon: Heart },
+      { name: 'Referrals', page: 'Referrals', icon: Gift },
+      { name: 'AI Support', page: 'AISupport', icon: Bot },
+    ];
+
+  const isActive = (page) => currentPageName === page;
+
+  const mainTabs = ['Home', 'MyTickets', 'DiscoverMap', 'Profile'];
+  const isMainTab = mainTabs.includes(currentPageName);
+  const canGoBack = !isMainTab;
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 relative">
+      <style>{`
+        :root {
+          --primary: 16 185 129;
+          --primary-foreground: 255 255 255;
+          --accent: 251 146 60;
+          --accent-foreground: 255 255 255;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+      
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm safe-area-top">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          {/* Mobile Header */}
+          <div className="md:hidden">
+            {canGoBack ? (
+              <div className="flex items-center justify-between h-14">
+                <button
+                  onClick={() => window.history.length > 1 ? navigate(-1) : navigate(createPageUrl('Home'))}
+                  className="flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors min-w-[44px] min-h-[44px]"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                  <span className="font-medium">Back</span>
+                </button>
+                <div className="flex items-center gap-2">
+                    {user ? (
+                      <>
+                        <NotificationBell userEmail={user.email} />
+                        <button 
+                          onClick={() => navigate(createPageUrl('Messages'))}
+                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        >
+                          <MessageCircle className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                        </button>
+                      </>
+                    ) : (
+                      <Button size="sm" onClick={() => base44.auth.redirectToLogin()} className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl px-4">
+                        Sign In
+                      </Button>
+                    )}
+                    <button
+                      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                      className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center ml-1"
+                    >
+                      {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                    </button>
+                  </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between h-14">
+                <Link to={createPageUrl('Home')} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                    <span className="text-white font-bold text-lg">i</span>
+                  </div>
+                  <span className="font-bold text-xl text-gray-900 dark:text-white">iHost</span>
+                </Link>
+
+                <div className="flex items-center gap-1">
+                  {user ? (
+                    <>
+                      <NotificationBell userEmail={user.email} />
+                      <button 
+                        onClick={() => navigate(createPageUrl('Messages'))}
+                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      >
+                        <MessageCircle className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                      </button>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={() => base44.auth.redirectToLogin()} className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl px-4">
+                      Sign In
+                    </Button>
+                  )}
+                  <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center ml-1"
+                  >
+                    {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Header */}
+          <div className="hidden md:flex items-center justify-between h-20 gap-6">
+            {/* Logo */}
+            <Link to={createPageUrl('Home')} className="flex items-center gap-3 flex-shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                <span className="text-white font-bold text-xl">i</span>
+              </div>
+              <span className="font-bold text-2xl text-gray-900 dark:text-white">iHost</span>
+            </Link>
+
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="hidden lg:flex items-center flex-1 max-w-md mx-6">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-11 pl-11 pr-4 py-2.5 text-base font-normal border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                />
+              </div>
+            </form>
+
+            {/* Desktop Nav */}
+            <nav className="hidden xl:flex items-center gap-1">
+              {navItems.map(item => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.page}
+                    to={createPageUrl(item.page)}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap
+                      ${isActive(item.page) 
+                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 shadow-sm' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Right Section */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {user ? (
+                <>
+                  <Link to={createPageUrl('Home')}>
+                    <Button variant="ghost" className="hidden lg:flex gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white h-9">
+                      <Home className="w-4 h-4" />
+                      Discover
+                    </Button>
+                  </Link>
+
+                  <Link to={createPageUrl('CreateEvent')}>
+                    <Button className="hidden sm:flex bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl gap-2 px-5 shadow-lg shadow-emerald-500/25 font-semibold h-9">
+                      <Plus className="w-4 h-4" />
+                      Host Event
+                    </Button>
+                  </Link>
+
+                  {/* Notifications */}
+                  <NotificationBell userEmail={user.email} />
+
+                  {/* Messages */}
+                  <button 
+                    onClick={() => navigate(createPageUrl('Messages'))}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    title="Messages"
+                  >
+                    <MessageCircle className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                  </button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2 p-1 rounded-xl hover:bg-gray-50 transition-colors">
+                        <Avatar className="w-10 h-10 border-2 border-emerald-100 shadow-sm">
+                          <AvatarImage src={user.avatar_url} />
+                          <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 font-semibold">
+                            {user.full_name?.charAt(0) || user.email?.charAt(0)?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                      <div className="px-4 py-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold text-gray-900">{user.full_name}</p>
+                          {isPremium && (
+                            <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs py-0.5 px-2 shadow-sm">
+                              <Crown className="w-3 h-3 mr-1" />
+                              Premium
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to={createPageUrl('Profile')} className="flex items-center gap-2 cursor-pointer">
+                          <User className="w-4 h-4" />
+                          My Profile
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={createPageUrl('HostDashboard')} className="flex items-center gap-2 cursor-pointer">
+                          <LayoutDashboard className="w-4 h-4" />
+                          Host Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={createPageUrl('Settings')} className="flex items-center gap-2 cursor-pointer">
+                          <Settings className="w-4 h-4" />
+                          Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={createPageUrl('HostPayouts')} className="flex items-center gap-2 cursor-pointer">
+                          <Wallet className="w-4 h-4" />
+                          Earnings & Payouts
+                        </Link>
+                      </DropdownMenuItem>
+                      {user.role === 'admin' && (
+                        <DropdownMenuItem asChild>
+                          <Link to={createPageUrl('OwnerPayoutSettings')} className="flex items-center gap-2 cursor-pointer">
+                            <Building2 className="w-4 h-4" />
+                            Owner Payout Setup
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      {!isPremium && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => navigate(createPageUrl('Premium'))}
+                            className="flex items-center gap-2 cursor-pointer text-orange-600 font-medium"
+                          >
+                            <Crown className="w-4 h-4" />
+                            Upgrade to Premium
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {user.role === 'admin' && (
+                        <DropdownMenuItem asChild>
+                          <Link to={createPageUrl('AdminDashboard')} className="flex items-center gap-2 cursor-pointer">
+                            <Shield className="w-4 h-4" />
+                            Admin Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign Out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <Button 
+                  onClick={() => base44.auth.redirectToLogin()}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl px-6 shadow-lg shadow-emerald-500/25 font-semibold"
+                >
+                  Sign In
+                </Button>
+              )}
+
+              {/* Tablet/Desktop Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="xl:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="xl:hidden border-t border-gray-200/50 dark:border-gray-700/50 bg-white dark:bg-gray-900 max-h-[calc(100vh-5rem)] overflow-y-auto">
+            <div className="px-6 py-6 space-y-3">
+              {/* Mobile Search */}
+              <form onSubmit={handleSearch} className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search events..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  />
+                </div>
+              </form>
+
+              {navItems.map(item => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.page}
+                    to={createPageUrl(item.page)}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold transition-all min-h-[44px]
+                      ${isActive(item.page) 
+                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 shadow-sm' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }
+                    `}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+              {!user && (
+                <button
+                  onClick={() => base44.auth.redirectToLogin()}
+                  className="flex items-center gap-3 px-5 py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold shadow-lg w-full"
+                >
+                  <User className="w-5 h-5" />
+                  Sign In
+                </button>
+              )}
+              {user && (
+                <>
+                  <Link
+                    to={createPageUrl('CreateEvent')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-5 py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold shadow-lg"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Host an Event
+                  </Link>
+                  
+                  <div className="border-t border-gray-200 my-3"></div>
+                  
+                  <Link
+                    to={createPageUrl('HostDashboard')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[44px]"
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    Host Dashboard
+                  </Link>
+                  
+                  <Link
+                    to={createPageUrl('Settings')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[44px]"
+                  >
+                    <Settings className="w-5 h-5" />
+                    Settings
+                  </Link>
+                  
+                  <Link
+                    to={createPageUrl('HostPayouts')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[44px]"
+                  >
+                    <Wallet className="w-5 h-5" />
+                    Earnings & Payouts
+                  </Link>
+                  
+                  {!isPremium && (
+                    <Link
+                      to={createPageUrl('Premium')}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 min-h-[44px]"
+                    >
+                      <Crown className="w-5 h-5" />
+                      Upgrade to Premium
+                    </Link>
+                  )}
+                  
+                  {user.role === 'admin' && (
+                    <Link
+                      to={createPageUrl('AdminDashboard')}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[44px]"
+                    >
+                      <Shield className="w-5 h-5" />
+                      Admin Dashboard
+                    </Link>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center gap-3 px-5 py-4 rounded-xl text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 w-full text-left min-h-[44px]"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Sign Out
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <main className="min-h-[calc(100vh-4rem)] pb-20 md:pb-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+
+
+      {/* Mobile Bottom Navigation */}
+      {user && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 safe-area-bottom">
+          <nav className="flex items-center justify-around px-2">
+            <button
+              onClick={() => {
+                if (currentTab === 'Home' && currentPageName !== 'Home') {
+                  navigate(createPageUrl('Home'));
+                } else {
+                  const stack = tabStacks.Home;
+                  const lastPage = stack[stack.length - 1];
+                  navigate(lastPage.path);
+                }
+              }}
+              className={`flex flex-col items-center justify-center px-4 py-2 transition-all min-h-[60px] flex-1 border-b-2 ${
+                currentTab === 'Home'
+                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-600 dark:border-emerald-400'
+                  : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <Home className={`w-5 h-5 ${currentTab === 'Home' ? 'fill-emerald-600 dark:fill-emerald-400' : ''}`} />
+              <span className="text-xs font-medium mt-1">Home</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (currentTab === 'DiscoverMap' && currentPageName !== 'DiscoverMap') {
+                  navigate(createPageUrl('DiscoverMap'));
+                } else {
+                  const stack = tabStacks.DiscoverMap;
+                  const lastPage = stack[stack.length - 1];
+                  navigate(lastPage.path);
+                }
+              }}
+              className={`flex flex-col items-center justify-center px-4 py-2 transition-all min-h-[60px] flex-1 border-b-2 ${
+                currentTab === 'DiscoverMap'
+                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-600 dark:border-emerald-400'
+                  : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <Map className={`w-5 h-5 ${currentTab === 'DiscoverMap' ? 'fill-emerald-600 dark:fill-emerald-400' : ''}`} />
+              <span className="text-xs font-medium mt-1">Map</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (currentTab === 'MyTickets' && currentPageName !== 'MyTickets') {
+                  navigate(createPageUrl('MyTickets'));
+                } else {
+                  const stack = tabStacks.MyTickets;
+                  const lastPage = stack[stack.length - 1];
+                  navigate(lastPage.path);
+                }
+              }}
+              className={`flex flex-col items-center justify-center px-4 py-2 transition-all min-h-[60px] flex-1 border-b-2 ${
+                currentTab === 'MyTickets'
+                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-600 dark:border-emerald-400'
+                  : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <Ticket className={`w-5 h-5 ${currentTab === 'MyTickets' ? 'fill-emerald-600 dark:fill-emerald-400' : ''}`} />
+              <span className="text-xs font-medium mt-1">Tickets</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (currentTab === 'Profile' && currentPageName !== 'Profile') {
+                  navigate(createPageUrl('Profile'));
+                } else {
+                  const stack = tabStacks.Profile;
+                  const lastPage = stack[stack.length - 1];
+                  navigate(lastPage.path);
+                }
+              }}
+              className={`flex flex-col items-center justify-center px-4 py-2 transition-all min-h-[60px] flex-1 border-b-2 ${
+                currentTab === 'Profile'
+                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-600 dark:border-emerald-400'
+                  : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <User className={`w-5 h-5 ${currentTab === 'Profile' ? 'fill-emerald-600 dark:fill-emerald-400' : ''}`} />
+              <span className="text-xs font-medium mt-1">Profile</span>
+            </button>
+          </nav>
+        </div>
+      )}
+
+      {/* Message Notifications */}
+      {user && <MessageNotificationCenter userEmail={user.email} />}
+
+      {/* Footer - show on main pages */}
+      {['Home', 'Premium', 'Legal'].includes(currentPageName) && (
+        <Footer />
+      )}
+    </div>
+  );
+}
